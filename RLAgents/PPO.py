@@ -26,13 +26,8 @@ class PPOAgent():
         self.doScale = doScale
         if self.doScale:
             self.init_scaler()
-        print("Observation Space Shape: ", env.observation_space)
-        print("Action Space Shape, Low, High: ", env.action_space,
-                                                 env.action_space.low,
-                                                 env.action_space.high)
         input_shape = env.observation_space.shape
         output_shape = env.action_space.shape[0]
-        print(input_shape, input_shape[0], output_shape)
         self.action_low = env.action_space.low[0]
         self.action_high = env.action_space.high[0]
         # tf.reset_default_graph()
@@ -49,7 +44,7 @@ class PPOAgent():
                                             '{}_network.ckpt'.format("car"))
         self.batch_size = 64
         self.memory_buffer_length = 640
-        self.epochs = 20
+        self.epochs = 10
         if resume:
             self.load_checkpoint()
         print("Batch Size: {}\nMemory Length: {}\nEpochs: {}".format(self.batch_size,
@@ -230,7 +225,7 @@ class PPOAgent():
                         validation_score, _ = self.test_play(False, 10)
                         print("Games: {}, Score: {:.2f}, Max Score: {:.2f}, Validation: {:.2f},"
                               .format(games+1, score_history/last_interval,
-                                      max_score, validation_score),
+                                      max_score, validation_score) +
                               " Actor Loss: {:.2f}, Critic Loss: {:.2f}".format
                               (actor_losses/last_interval, critic_losses/last_interval))
                         actor_losses = 0

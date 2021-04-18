@@ -48,7 +48,6 @@ class Actor():
                                     dtype=tf.float32, name="actor_state_input")
         self.old_logprobs = tf.placeholder(tf.float32, shape=[None, self.n_actions],
                                            name="old_logprobs")
-        print(self.input)
         self.action_input = tf.placeholder(tf.float32, shape=[None, self.n_actions], name="action")
         self.action = 2 * (self.action_input - self.action_space_low)/(self.action_space_high - self.action_space_low) - 1
         self.advantages = tf.placeholder(tf.float32, shape=[None, ], name='advantages')
@@ -56,12 +55,10 @@ class Actor():
         neighbor_feats = self.input[:, 1:, 1:]
         neighbor_masks = self.input[:, 1:, 0:1]
         # self.agent_feats = self.input[:, 0:1, 3:]
-        print(self.neighbor_feats)
         # exit()
 
         neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
         self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings)
-        print(self.context_vector)
         self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.tanh,
                                       kernel_initializer=tf.orthogonal_initializer(1.0),
                                       name='actor_dense1')
@@ -122,7 +119,7 @@ class Actor():
             else:
                 return action, None
         else:
-            action, logprobs = self.sess.run([self.predicted_action_rescaled, self.action_logprobs],
+            action, logprobs = self.sess.run([self.action_rescaled, self.action_logprobs],
                                              {self.input: state, self.isTraining: False,
                                               })
             action = np.squeeze(action)
@@ -169,11 +166,11 @@ class Critic:
             self.isTraining = tf.placeholder(tf.bool, shape=[])
             self.target = tf.placeholder(tf.float32, shape=[None, 1], name="target")
 
-            self.neighbor_feats = self.input[:, 1:, 1:]
-            self.neighbor_masks = self.input[:, 1:, 0]
-            self.agent_feats = self.input[:, 0:1, 3:]
+            neighbor_feats = self.input[:, 1:, 1:]
+            neighbor_masks = self.input[:, 1:, 0:1]
+            # agent_feats = self.input[:, 0:1, 3:]
 
-            neighbor_encodings = get_neighbor_encodings(self.neighbor_feats)
+            neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
             self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings)
 
             self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.relu,
