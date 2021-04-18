@@ -10,6 +10,14 @@ import argparse
 import cv2
 
 
+def log(text):
+    with open("auto.txt", 'a') as f:
+        f.write("{}\n".format(text))
+
+
+print = log
+
+
 class PPOAgent():
 
     def __init__(self, env, resume=False, doScale=False, dir='chkpt'):
@@ -38,7 +46,7 @@ class PPOAgent():
         self.memory = Memory()
         self.saver = tf.train.Saver()
         self.checkpoint_file = os.path.join('./{}'.format(dir),
-                                            '{}_network.ckpt'.format("Dancer"))
+                                            '{}_network.ckpt'.format("car"))
         self.batch_size = 64
         self.memory_buffer_length = 640
         self.epochs = 20
