@@ -27,5 +27,6 @@ if settings.train:
 
 elif settings.test:
     agent = PPOAgent(env, resume=True)
-    score, _ = agent.test_play(games=5, gui=True, max_iter=1000)
-    print(score)
+    for _ in range(5):
+        score, _ = agent.test_play(games=1, gui=True, max_iter=1000)
+        print(score)

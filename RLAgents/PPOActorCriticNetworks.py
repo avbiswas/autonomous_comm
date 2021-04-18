@@ -3,10 +3,11 @@ import tensorflow_probability as tfp
 import numpy as np
 
 
-def get_neighbor_encodings(neighbor_feats, reuse=False):
+def get_neighbor_encodings(neighbor_feats, neighbor_masks, reuse=False):
     with tf.variable_scope("encoding", reuse=tf.AUTO_REUSE):
         dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(neighbor_feats)
-        # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+        dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+        dense = dense * neighbor_masks
     return dense
 
 
@@ -48,17 +49,17 @@ class Actor():
         self.old_logprobs = tf.placeholder(tf.float32, shape=[None, self.n_actions],
                                            name="old_logprobs")
         print(self.input)
-        self.action = tf.placeholder(tf.float32, shape=[None, self.n_actions], name="action")
-        self.action = (self.action - self.action_space_low)/(self.action_space_high - self.action_space_low)
+        self.action_input = tf.placeholder(tf.float32, shape=[None, self.n_actions], name="action")
+        self.action = 2 * (self.action_input - self.action_space_low)/(self.action_space_high - self.action_space_low) - 1
         self.advantages = tf.placeholder(tf.float32, shape=[None, ], name='advantages')
 
-        self.neighbor_feats = self.input[:, 1:, 1:]
-        self.neighbor_masks = self.input[:, 1:, 0]
-        self.agent_feats = self.input[:, 0:1, 3:]
+        neighbor_feats = self.input[:, 1:, 1:]
+        neighbor_masks = self.input[:, 1:, 0:1]
+        # self.agent_feats = self.input[:, 0:1, 3:]
         print(self.neighbor_feats)
         # exit()
 
-        neighbor_encodings = get_neighbor_encodings(self.neighbor_feats)
+        neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
         self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings)
         print(self.context_vector)
         self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.tanh,
@@ -69,11 +70,11 @@ class Actor():
                                   kernel_initializer=tf.orthogonal_initializer(1.0),
                                   name='mu')
         if learn_std:
-            self.sigma = tf.exp(tf.layers.dense(self.dense1, self.n_actions,
+            self.sigma = tf.exp(tf.layers.dense(self.dense1, self.n_actions, activation=tf.nn.tanh,
                                                 kernel_initializer=tf.orthogonal_initializer(1.0),
                                                 name='sigma'))
         else:
-            self.sigma = tf.Variable(initial_value=0.5*np.ones(self.n_actions, dtype=np.float32))
+            self.sigma = tf.Variable(initial_value=0.1*np.ones(self.n_actions, dtype=np.float32))
 
         self.sigma = tf.clip_by_value(self.sigma, 0.0005, 0.5)
         self.policy = tfp.distributions.Normal(self.mu, self.sigma, name='policy')
@@ -83,6 +84,10 @@ class Actor():
                                                   name='action_probs'))[0]
         '''
         self.predicted_action = tf.squeeze(self.policy.sample(1), axis=0)
+
+        self.mu_rescaled = (self.mu + 1)/2 * (self.action_space_high - self.action_space_low) + self.action_space_low
+        self.action_rescaled = (self.predicted_action + 1)/2 * (self.action_space_high - self.action_space_low) + self.action_space_low
+
         self.action_logprobs = self.policy.log_prob(self.predicted_action)
         self.new_logprobs = self.policy.log_prob(self.action)
         print(self.predicted_action, self.action_logprobs, self.new_logprobs)
@@ -104,12 +109,12 @@ class Actor():
         if np.array(state).ndim == 2:
             state = [state]
         if test:
-            action = self.sess.run(self.mu,
+            action = self.sess.run(self.mu_rescaled,
                                    {self.input: state, self.isTraining: False,
                                     })
-            action = np.clip(action, self.action_space_low, self.action_space_high)
-            action = action * (self.action_space_high - self.action_space_low) + \
-                self.action_space_low
+            # action = np.clip(action, self.action_space_low, self.action_space_high)
+            # action = action * (self.action_space_high - self.action_space_low) + \
+            #    self.action_space_low
 
             action = np.squeeze(action)
             if len(np.shape(action)) == 0:
@@ -117,12 +122,12 @@ class Actor():
             else:
                 return action, None
         else:
-            action, logprobs = self.sess.run([self.predicted_action, self.action_logprobs],
+            action, logprobs = self.sess.run([self.predicted_action_rescaled, self.action_logprobs],
                                              {self.input: state, self.isTraining: False,
                                               })
             action = np.squeeze(action)
-            action = action * (self.action_space_high - self.action_space_low) + \
-                self.action_space_low
+            # action = action * (self.action_space_high - self.action_space_low) + \
+            #    self.action_space_low
             return action, logprobs[0]
 
     def learn(self, state, action, adv, old_logprobs):
@@ -146,7 +151,7 @@ class Actor():
         print("******")
         '''
         _, loss = self.sess.run([self.train_op, self._loss],
-                                {self.input: state, self.action: action,
+                                {self.input: state, self.action_input: action,
                                  self.advantages: adv, self.isTraining: True,
                                  self.old_logprobs: old_logprobs})
         return loss

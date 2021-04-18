@@ -30,7 +30,7 @@ class PPOAgent():
         # tf.reset_default_graph()
         self.actor = Actor(self.sess, input_shape, output_shape, 5e-4, self.action_low,
                            self.action_high, learn_std=True)
-        self.critic = Critic(self.sess, input_shape, 1e-2)
+        self.critic = Critic(self.sess, input_shape, 1e-3)
         self.sess.run(tf.group(tf.global_variables_initializer(),
                       tf.local_variables_initializer()))
         self.gamma = 0.99
@@ -39,9 +39,9 @@ class PPOAgent():
         self.saver = tf.train.Saver()
         self.checkpoint_file = os.path.join('./{}'.format(dir),
                                             '{}_network.ckpt'.format("Dancer"))
-        self.batch_size = 16
-        self.memory_buffer_length = 32
-        self.epochs = 2
+        self.batch_size = 64
+        self.memory_buffer_length = 640
+        self.epochs = 20
         if resume:
             self.load_checkpoint()
         print("Batch Size: {}\nMemory Length: {}\nEpochs: {}".format(self.batch_size,
