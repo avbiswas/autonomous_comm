@@ -11,11 +11,18 @@ def get_neighbor_encodings(neighbor_feats, neighbor_masks, reuse=False):
     return dense
 
 
-def get_attention_scores(neighbor_encodings, reuse=False):
+def get_agent_encoding(agent_feats):
+    dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(agent_feats)
+    dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+    return dense
+
+
+def get_attention_scores(neighbor_encodings, agent_encodings, reuse=False):
     with tf.variable_scope("attention", reuse=tf.AUTO_REUSE):
         query_ = tf.reduce_mean(neighbor_encodings, axis=1, keepdims=True)
+        query_concat = tf.concat([query_, agent_encodings], axis=-1)
         # print(query_)
-        query_embedding = tf.keras.layers.Dense(32)(query_)
+        query_embedding = tf.keras.layers.Dense(32)(query_concat)
         # print(query_embedding)
         value_embedding = tf.keras.layers.Dense(32)(neighbor_encodings)
         value_embedding_results = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(neighbor_encodings)
@@ -54,11 +61,12 @@ class Actor():
 
         neighbor_feats = self.input[:, 1:, 1:]
         neighbor_masks = self.input[:, 1:, 0:1]
-        # self.agent_feats = self.input[:, 0:1, 3:]
+        agent_feats = self.input[:, 0:1, 2:]
         # exit()
 
         neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
-        self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings)
+        agent_encoding = get_agent_encoding(agent_feats)
+        self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
         self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.tanh,
                                       kernel_initializer=tf.orthogonal_initializer(1.0),
                                       name='actor_dense1')
@@ -113,19 +121,13 @@ class Actor():
             # action = action * (self.action_space_high - self.action_space_low) + \
             #    self.action_space_low
 
-            action = np.squeeze(action)
-            if len(np.shape(action)) == 0:
-                return [action], None
-            else:
-                return action, None
+            logprobs = [[1]]
         else:
             action, logprobs = self.sess.run([self.action_rescaled, self.action_logprobs],
                                              {self.input: state, self.isTraining: False,
                                               })
-            action = np.squeeze(action)
-            # action = action * (self.action_space_high - self.action_space_low) + \
-            #    self.action_space_low
-            return action, logprobs[0]
+
+        return action, logprobs
 
     def learn(self, state, action, adv, old_logprobs):
         '''
@@ -168,11 +170,13 @@ class Critic:
 
             neighbor_feats = self.input[:, 1:, 1:]
             neighbor_masks = self.input[:, 1:, 0:1]
-            # agent_feats = self.input[:, 0:1, 3:]
+            agent_feats = self.input[:, 0:1, 2:]
+            # exit()
 
             neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
-            self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings)
-
+            agent_encoding = get_agent_encoding(agent_feats)
+            self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
+            
             self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.relu,
                                           kernel_initializer=tf.orthogonal_initializer(1.0))
 

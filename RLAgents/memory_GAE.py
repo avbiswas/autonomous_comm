@@ -58,6 +58,46 @@ class Memory():
         self.memory['old_logprobs'] = []
 
 
+class VectorizedMemory():
+    def __init__(self, num_envs):
+        self.num_envs = num_envs
+        self.memory_envs = {i: Memory() for i in range(self.num_envs)}
+
+    def size(self):
+        return sum([memory.size() for _, memory in self.memory_envs.items()])
+
+    def remember(self, states, actions, rewards, states_next, dones, old_logprobs):
+        # print(states.keys(), rewards.keys(), dones, states_next.keys())
+        for key in states_next:
+            self.memory_envs[key].remember(states[key],
+                                           actions[key],
+                                           rewards[key],
+                                           states_next[key],
+                                           dones[key],
+                                           old_logprobs[key])
+
+    def getRecords(self):
+        states = []
+        actions = []
+        rewards = []
+        states_next = []
+        dones = []
+        old_logprobs = []
+
+        for _ in range(self.num_envs):
+            s, a, r, s_, d, lp = self.memory_envs[_].getRecords()
+            states.extend(s)
+            actions.extend(a)
+            rewards.extend(r)
+            states_next.extend(s_)
+            dones.extend(d)
+            old_logprobs.extend(lp)
+        return states, actions, rewards, states_next, dones, old_logprobs
+
+    def clear(self):
+        [self.memory_envs[k].clear() for k in range(self.num_envs)]
+
+
 if __name__ == '__main__':
     memory = Memory()
     memory.remember((1, 2), 1, 0, (2, 2), False)
