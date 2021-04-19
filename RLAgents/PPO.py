@@ -97,7 +97,7 @@ class PPOAgent():
                 if max_iter is not None:
                     if steps > max_iter:
                         break
-                if done:
+                if np.all([v for _, v in done.items()]):
                     break
             if save:
                 from numpngw import write_apng
