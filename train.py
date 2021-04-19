@@ -20,6 +20,12 @@ env.configure({
     "policy_frequency": 1
 })
 env.reset()
+
+'''
+for _ in range(10):
+    s, r, d, _ = env.step(env.action_space.sample())
+    print(s)
+'''
 if settings.train:
     render = True
     agent = PPOAgent(env, resume=settings.resume)

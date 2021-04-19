@@ -24,7 +24,7 @@ class PPOAgent():
     def __init__(self, env_name, resume=False, doScale=False, dir='chkpt'):
         self.sess = tf.Session()
         # self.env = env
-        num_envs = 32
+        num_envs = 3
         self.env = VectorizedEnvs(num_envs)
         self.doScale = doScale
 
@@ -32,8 +32,8 @@ class PPOAgent():
             self.init_scaler()
         input_shape = self.env.observation_space.shape
         output_shape = self.env.action_space.shape[0]
-        self.action_low = self.env.action_space.low[0]
-        self.action_high = self.env.action_space.high[0]
+        self.action_low = self.env.action_space.low
+        self.action_high = self.env.action_space.high
         # tf.reset_default_graph()
         self.actor = Actor(self.sess, input_shape, output_shape, 5e-4, self.action_low,
                            self.action_high, learn_std=True)
@@ -46,9 +46,9 @@ class PPOAgent():
         self.saver = tf.train.Saver()
         self.checkpoint_file = os.path.join('./{}'.format(dir),
                                             '{}_network.ckpt'.format("car"))
-        self.batch_size = 64
-        self.memory_buffer_length = 640
-        self.epochs = 20
+        self.batch_size = 256
+        self.memory_buffer_length = 1280
+        self.epochs = 10
         if resume:
             self.load_checkpoint()
         print("Batch Size: {}\nMemory Length: {}\nEpochs: {}".format(self.batch_size,
@@ -115,10 +115,10 @@ class PPOAgent():
         batch_state = np.array(batch_state)
         batch_action = np.array(batch_action)
         batch_log_probs = np.array(batch_log_probs)
-
+        print(batch_done)
         batch_size = len(batch_state)
-        batch_advantage = [0] * batch_size
-        batch_target = [0] * batch_size
+        batch_advantage = np.array([0] * batch_size)
+        batch_target = np.array([0] * batch_size)
 
         last_GAE = 0
         value_states = self.critic.predict(batch_state)
@@ -205,8 +205,7 @@ class PPOAgent():
                         score[k] += v
                     # print(score)
                     # print(done)
-
-                    if np.all(v for _, v in done.items()):
+                    if np.all([v for _, v in done.items()]):
                         break
                     # score = np.mean([v for k, v in reward.items()])
 

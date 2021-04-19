@@ -117,16 +117,11 @@ class Actor():
             action = self.sess.run(self.mu_rescaled,
                                    {self.input: state, self.isTraining: False,
                                     })
-            # action = np.clip(action, self.action_space_low, self.action_space_high)
-            # action = action * (self.action_space_high - self.action_space_low) + \
-            #    self.action_space_low
-
             logprobs = [[1]]
         else:
             action, logprobs = self.sess.run([self.action_rescaled, self.action_logprobs],
                                              {self.input: state, self.isTraining: False,
                                               })
-
         return action, logprobs
 
     def learn(self, state, action, adv, old_logprobs):
@@ -176,7 +171,7 @@ class Critic:
             neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
             agent_encoding = get_agent_encoding(agent_feats)
             self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
-            
+
             self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.relu,
                                           kernel_initializer=tf.orthogonal_initializer(1.0))
 
