@@ -46,9 +46,9 @@ class PPOAgent():
         self.saver = tf.train.Saver()
         self.checkpoint_file = os.path.join('./{}'.format(dir),
                                             '{}_network.ckpt'.format("car"))
-        self.batch_size = 256
-        self.memory_buffer_length = 1280
-        self.epochs = 10
+        self.batch_size = 2
+        self.memory_buffer_length = 24
+        self.epochs = 1
         if resume:
             self.load_checkpoint()
         print("Batch Size: {}\nMemory Length: {}\nEpochs: {}".format(self.batch_size,
@@ -115,7 +115,6 @@ class PPOAgent():
         batch_state = np.array(batch_state)
         batch_action = np.array(batch_action)
         batch_log_probs = np.array(batch_log_probs)
-        print(batch_done)
         batch_size = len(batch_state)
         batch_advantage = np.array([0] * batch_size)
         batch_target = np.array([0] * batch_size)
