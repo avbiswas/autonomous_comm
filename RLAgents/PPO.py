@@ -23,13 +23,14 @@ class PPOAgent():
 
     def __init__(self, env_name, resume=False, doScale=False, dir='chkpt'):
         self.sess = tf.Session()
+
         # self.env = env
-        num_envs = 3
-        self.env = VectorizedEnvs(num_envs)
+        self.num_envs = 24
+        self.env = VectorizedEnvs(self.num_envs)
         self.doScale = doScale
 
-        if self.doScale:
-            self.init_scaler()
+        # if self.doScale:
+        #    self.init_scaler()
         input_shape = self.env.observation_space.shape
         output_shape = self.env.action_space.shape[0]
         self.action_low = self.env.action_space.low
@@ -42,20 +43,23 @@ class PPOAgent():
                       tf.local_variables_initializer()))
         self.gamma = 0.99
         self.lambd = 0.95
-        self.memory = VectorizedMemory(num_envs)
+        self.memory = VectorizedMemory(self.num_envs)
         self.saver = tf.train.Saver()
         self.checkpoint_file = os.path.join('./{}'.format(dir),
                                             '{}_network.ckpt'.format("car"))
-        self.batch_size = 2
-        self.memory_buffer_length = 24
-        self.epochs = 1
+        self.checkpoint_file_temp = os.path.join('./chkpt2',
+                                                 '{}_network.ckpt'.format("car"))
+
+        self.batch_size = 128
+        self.memory_buffer_length = 1280
+        self.epochs = 10
         if resume:
             self.load_checkpoint()
         print("Batch Size: {}\nMemory Length: {}\nEpochs: {}".format(self.batch_size,
               self.memory_buffer_length, self.epochs))
 
-    def remember(self, state, action, reward, state_next, done, logprobs):
-        self.memory.remember(state, action, reward, state_next, done, logprobs)
+    def remember(self, state, action, reward, state_next, done, logprobs, tlr):
+        self.memory.remember(state, action, reward, state_next, done, logprobs, tlr)
 
     def act(self, state_dict, test=False):
         state = np.array([v for k, v in state_dict.items()])
@@ -68,50 +72,47 @@ class PPOAgent():
     def test_play(self, gui=False, games=3, log=False, max_iter=None, save=False):
         val_scores = []
         logs_all_games = []
-        for game in range(games):
-            logs = []
+        env = VectorizedEnvs(games)
+        logs = []
+        state = env.reset()
+        score = {i: 0 for i in state.keys()}
+        steps = 0
+        images = []
+        while True:
+            if gui:
+                env.render()
 
-            state = self.env.reset()
-            score = {i: 0 for i in state.keys()}
-            steps = 0
-            images = []
-            while True:
-                if gui:
-                    import time
-                    self.env.render()
-                    # time.sleep(1/240)
-
-                action, _ = self.act(state, test=True)
-                state_, reward, done, info = self.env.step(action)
-                if save:
-                    img = self.env.render('rgb_array')
-                    cv2.imshow("", img)
-                    cv2.waitKey(1)
-                    images.append(img)
-                for k, v in reward.items():
-                    score[k] += v
-
-                state = state_
-                logs.append(info)
-                steps += 1
-                if max_iter is not None:
-                    if steps > max_iter:
-                        break
-                if np.all([v for _, v in done.items()]):
-                    break
+            action, _ = self.act(state, test=True)
+            state_, reward, done, info = env.step(action)
             if save:
-                from numpngw import write_apng
-                write_apng('anim_{}.png'.format(game), images, delay=20)
+                img = env.render('rgb_array')
+                cv2.imshow("", img)
+                cv2.waitKey(1)
+                images.append(img)
+            for k, v in reward.items():
+                score[k] += v
 
-            score_history = np.mean([s for _, s in score.items()])
-            val_scores.append(score_history)
-            logs_all_games.append(logs)
+            state = state_
+            logs.append(info)
+            steps += 1
+            if max_iter is not None:
+                if steps > max_iter:
+                    break
+            if np.all([v for _, v in done.items()]):
+                break
+        if save:
+            from numpngw import write_apng
+            write_apng('anim_{}.png'.format(games), images, delay=20)
+
+        score_history = np.mean([s for _, s in score.items()])
+        val_scores.append(score_history)
+        logs_all_games.append(logs)
 
         return np.mean(val_scores), logs_all_games
 
     def learn(self):
-        batch_state, batch_action, batch_reward, batch_state_next, batch_done, batch_log_probs = \
-            self.memory.getRecords()
+        batch_state, batch_action, batch_reward, batch_state_next, batch_done, \
+            batch_log_probs, batch_tlr = self.memory.getRecords()
         batch_state = np.array(batch_state)
         batch_action = np.array(batch_action)
         batch_log_probs = np.array(batch_log_probs)
@@ -127,7 +128,10 @@ class PPOAgent():
             value_state = value_states[i]
             value_state_next = value_states[i + 1]
             if batch_done[i]:
-                delta = batch_reward[i] - value_state
+                if not batch_tlr[i]:
+                    delta = batch_reward[i] - value_state
+                else:
+                    delta = batch_reward[i] + (self.gamma * value_state_next) - value_state
                 last_GAE = delta
             else:
                 delta = batch_reward[i] + (self.gamma * value_state_next) - value_state
@@ -182,7 +186,7 @@ class PPOAgent():
             score_history = 0
             actor_losses = 0
             critic_losses = 0
-            query_intervals = 2
+            query_intervals = 1
             last_interval = 0
             max_score = -20000
             best_validation_score = -500
@@ -192,36 +196,32 @@ class PPOAgent():
                 while True:
                     action, log_probs = self.act(state)
 
-                    state_, reward, done, _ = self.env.step(action)
-                    # print(state_.keys(), state.keys())
-                    # self.env.render()
+                    state_, reward, done, info = self.env.step(action)
+                    time_limit_info = {k: v["time_limit_reached"] for k, v in info.items()}
 
-                    self.remember(state, action, reward, state_, done, log_probs)
+                    self.remember(state, action, reward, state_, done, log_probs,
+                                  time_limit_info)
 
                     state = state_
-                    # print(reward)
                     for k, v in reward.items():
                         score[k] += v
-                    # print(score)
-                    # print(done)
                     if np.all([v for _, v in done.items()]):
                         break
-                    # score = np.mean([v for k, v in reward.items()])
 
                 score_history += np.mean([s for _, s in score.items()])
                 max_score = max(score_history, max_score)
-                # print(score, score_history, max_score)
 
                 last_interval += 1
 
                 if self.memory.size() > self.memory_buffer_length:
                     actor_loss_, critic_loss_ = self.learn()
+                    self.saver.save(self.sess, self.checkpoint_file_temp)
                     actor_losses += actor_loss_
                     critic_losses += critic_loss_
                     if last_interval >= query_intervals:
-                        validation_score, _ = self.test_play(False, 2)
+                        validation_score, _ = self.test_play(False, 10)
                         print("Games: {}, Score: {:.2f}, Max Score: {:.2f}, Validation: {:.2f},"
-                              .format(games+1, score_history/last_interval,
+                              .format((games+1)*self.num_envs, score_history/last_interval,
                                       max_score, validation_score) +
                               " Actor Loss: {:.2f}, Critic Loss: {:.2f}".format
                               (actor_losses/last_interval, critic_losses/last_interval))

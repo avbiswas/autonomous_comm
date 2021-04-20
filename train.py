@@ -11,6 +11,7 @@ parser.add_argument("--test", action="store_true", default=False, help="Test exi
 settings = parser.parse_args()
 
 env = gym.make("highway-v0")
+
 env.configure({
     "action": {
         "type": "ContinuousAction"
@@ -34,5 +35,5 @@ if settings.train:
 elif settings.test:
     agent = PPOAgent(env, resume=True)
     for _ in range(5):
-        score, _ = agent.test_play(games=1, gui=True, max_iter=1000)
+        score, _ = agent.test_play(games=1, gui=True)
         print(score)

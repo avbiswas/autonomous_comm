@@ -17,8 +17,8 @@ class VectorizedEnvs:
                     "type": "ContinuousAction"
                 },
                 "offroad_terminal": True,
-                "simulation_frequency": 10,
-                "policy_frequency": 5,
+                "simulation_frequency": 8,
+                "policy_frequency": 4,
                 "offscreen_rendering": True
             })
             env.reset()
@@ -70,41 +70,42 @@ class VectorizedEnvs:
         return {i: self.envs[i].action_space.sample() for i in range(self.num_envs)}
 
 
-num_envs = 8
-start_time = time.time()
-env = VectorizedEnvs(num_envs)
-memory = VectorizedMemory(num_envs)
+if __name__ == "__init__":
+    num_envs = 8
+    start_time = time.time()
+    env = VectorizedEnvs(num_envs)
+    memory = VectorizedMemory(num_envs)
 
-x = 0
-while True:
-    s = env.reset()
+    x = 0
     while True:
-        a = env.sample_action()
-        s_, r, d, _ = env.step(a)
-        memory.remember(s, a, r, s_, d, a)
-        s = s_
-        # env.render()
-        dones = [v for _, v in d.items()]
-        x += len(dones)
-        if np.all(dones):
+        s = env.reset()
+        while True:
+            a = env.sample_action()
+            s_, r, d, _ = env.step(a)
+            memory.remember(s, a, r, s_, d, a)
+            s = s_
+            # env.render()
+            dones = [v for _, v in d.items()]
+            x += len(dones)
+            if np.all(dones):
+                break
+        # print(memory.size())
+        if memory.size() > 64:
             break
-    # print(memory.size())
-    if memory.size() > 64:
-        break
 
-end_time = time.time()
-print(end_time - start_time)
+    end_time = time.time()
+    print(end_time - start_time)
 
-s, a, r, s_, d, lp = memory.getRecords()
-s = np.array(s)
-a = np.array(a)
-r = np.array(r)
-d = np.array(d)
-lp = np.array(lp)
-# print(s)
-print(np.shape(s))
-print(np.shape(a))
-print(np.shape(r))
-print(np.shape(s_))
-print(d)
-# print(lp)
+    s, a, r, s_, d, lp = memory.getRecords()
+    s = np.array(s)
+    a = np.array(a)
+    r = np.array(r)
+    d = np.array(d)
+    lp = np.array(lp)
+    # print(s)
+    print(np.shape(s))
+    print(np.shape(a))
+    print(np.shape(r))
+    print(np.shape(s_))
+    print(d)
+    # print(lp)

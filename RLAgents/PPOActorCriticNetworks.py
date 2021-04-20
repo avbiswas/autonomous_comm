@@ -5,27 +5,28 @@ import numpy as np
 
 def get_neighbor_encodings(neighbor_feats, neighbor_masks, reuse=False):
     with tf.variable_scope("encoding", reuse=tf.AUTO_REUSE):
-        dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(neighbor_feats)
-        dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+        dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(neighbor_feats)
+        # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
         dense = dense * neighbor_masks
     return dense
 
 
 def get_agent_encoding(agent_feats):
-    dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(agent_feats)
-    dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+    dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(agent_feats)
+    # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
     return dense
 
 
 def get_attention_scores(neighbor_encodings, agent_encodings, reuse=False):
     with tf.variable_scope("attention", reuse=tf.AUTO_REUSE):
-        query_ = tf.reduce_mean(neighbor_encodings, axis=1, keepdims=True)
-        query_concat = tf.concat([query_, agent_encodings], axis=-1)
+        query_ = tf.reduce_sum(neighbor_encodings, axis=1, keepdims=True)
+        query_2 = tf.reduce_max(neighbor_encodings, axis=1, keepdims=True)
+        query_concat = tf.concat([query_, query_2, agent_encodings], axis=-1)
         # print(query_)
-        query_embedding = tf.keras.layers.Dense(32)(query_concat)
+        query_embedding = tf.keras.layers.Dense(64)(query_concat)
         # print(query_embedding)
-        value_embedding = tf.keras.layers.Dense(32)(neighbor_encodings)
-        value_embedding_results = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(neighbor_encodings)
+        value_embedding = tf.keras.layers.Dense(64)(neighbor_encodings)
+        value_embedding_results = tf.keras.layers.Dense(64, activation=tf.nn.relu)(neighbor_encodings)
         concat = query_embedding + value_embedding
         # print(concat)
         attention_scores = tf.keras.layers.Dense(1, activation=tf.nn.tanh)(concat)
@@ -61,13 +62,13 @@ class Actor():
 
         neighbor_feats = self.input[:, 1:, 1:]
         neighbor_masks = self.input[:, 1:, 0:1]
-        agent_feats = self.input[:, 0:1, 2:]
+        agent_feats = self.input[:, 0:1, 1:]
         # exit()
 
         neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
         agent_encoding = get_agent_encoding(agent_feats)
         self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
-        self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.tanh,
+        self.dense1 = tf.layers.dense(self.context_vector, 128, activation=tf.nn.relu,
                                       kernel_initializer=tf.orthogonal_initializer(1.0),
                                       name='actor_dense1')
 
@@ -75,13 +76,13 @@ class Actor():
                                   kernel_initializer=tf.orthogonal_initializer(1.0),
                                   name='mu')
         if learn_std:
-            self.sigma = tf.exp(tf.layers.dense(self.dense1, self.n_actions, activation=tf.nn.tanh,
-                                                kernel_initializer=tf.orthogonal_initializer(1.0),
-                                                name='sigma'))
+            self.sigma = tf.layers.dense(self.dense1, self.n_actions, activation=tf.nn.sigmoid,
+                                         kernel_initializer=tf.orthogonal_initializer(1.0),
+                                         name='sigma') * 0.25
         else:
             self.sigma = tf.Variable(initial_value=0.1*np.ones(self.n_actions, dtype=np.float32))
 
-        self.sigma = tf.clip_by_value(self.sigma, 0.0005, 0.5)
+        self.sigma = tf.clip_by_value(self.sigma, 0.0005, 0.1)
         self.policy = tfp.distributions.Normal(self.mu, self.sigma, name='policy')
         '''
         self.predicted_action = (tf.clip_by_value(self.policy.sample(1),
@@ -106,7 +107,7 @@ class Actor():
                                    1 - self.eps, 1 + self.eps) * self.advantages2
         self.surrogate_loss = -(tf.math.minimum(self.p1, self.p2))
         self.entropy_loss = -0.01 * self.policy.entropy()
-        self._loss = tf.reduce_mean(self.surrogate_loss + self.entropy_loss)
+        self._loss = tf.reduce_mean(self.surrogate_loss) + tf.reduce_mean(self.entropy_loss)
 
         self.train_op = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._loss)
 
@@ -119,9 +120,10 @@ class Actor():
                                     })
             logprobs = [[1]]
         else:
-            action, logprobs = self.sess.run([self.action_rescaled, self.action_logprobs],
+            action, sigma, logprobs = self.sess.run([self.action_rescaled, self.sigma, self.action_logprobs],
                                              {self.input: state, self.isTraining: False,
                                               })
+            # print(sigma)
         return action, logprobs
 
     def learn(self, state, action, adv, old_logprobs):
@@ -165,14 +167,14 @@ class Critic:
 
             neighbor_feats = self.input[:, 1:, 1:]
             neighbor_masks = self.input[:, 1:, 0:1]
-            agent_feats = self.input[:, 0:1, 2:]
+            agent_feats = self.input[:, 0:1, 1:]
             # exit()
 
             neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
             agent_encoding = get_agent_encoding(agent_feats)
             self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
 
-            self.dense1 = tf.layers.dense(self.context_vector, 32, activation=tf.nn.relu,
+            self.dense1 = tf.layers.dense(self.context_vector, 128, activation=tf.nn.relu,
                                           kernel_initializer=tf.orthogonal_initializer(1.0))
 
             self.values = tf.layers.dense(self.dense1, 1,
