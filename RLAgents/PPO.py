@@ -9,6 +9,7 @@ import os
 import argparse
 import cv2
 from .VectorizeEnv import VectorizedEnvs
+from .networks import *
 
 
 def log(text):
@@ -21,12 +22,18 @@ def log(text):
 
 class PPOAgent():
 
-    def __init__(self, env_name, resume=False, doScale=False, dir='chkpt'):
+    def __init__(self, env_name, resume=False, doScale=False, dir='chkpt', obs="Kinematics"):
         self.sess = tf.Session()
 
         # self.env = env
         self.num_envs = 24
-        self.env = VectorizedEnvs(self.num_envs)
+        self.obs = obs
+        self.env = VectorizedEnvs(self.num_envs, observation=self.obs)
+
+        if self.obs == "Kinematics":
+            state_encoder = AttentionKinematicsEncoder
+        elif self.obs == "OccupancyGrid":
+            state_encoder = NeighborhoodEncoder
         self.doScale = doScale
 
         # if self.doScale:
@@ -35,19 +42,19 @@ class PPOAgent():
         output_shape = self.env.action_space.shape[0]
         self.action_low = self.env.action_space.low
         self.action_high = self.env.action_space.high
-        # tf.reset_default_graph()
+
         self.actor = Actor(self.sess, input_shape, output_shape, 5e-4, self.action_low,
-                           self.action_high, learn_std=True)
-        self.critic = Critic(self.sess, input_shape, 1e-3)
+                           self.action_high, state_encoder=state_encoder, learn_std=True)
+        self.critic = Critic(self.sess, input_shape, 1e-3,  state_encoder=state_encoder)
         self.sess.run(tf.group(tf.global_variables_initializer(),
                       tf.local_variables_initializer()))
         self.gamma = 0.99
         self.lambd = 0.95
         self.memory = VectorizedMemory(self.num_envs)
         self.saver = tf.train.Saver()
-        self.checkpoint_file = os.path.join('./{}'.format(dir),
+        self.checkpoint_file = os.path.join('./{}_{}'.format(dir, self.obs),
                                             '{}_network.ckpt'.format("car"))
-        self.checkpoint_file_temp = os.path.join('./chkpt2',
+        self.checkpoint_file_temp = os.path.join('./chkpt2_{}'.format(self.obs),
                                                  '{}_network.ckpt'.format("car"))
 
         self.batch_size = 128
@@ -70,9 +77,12 @@ class PPOAgent():
         return predicted_action, logprobs
 
     def test_play(self, gui=False, games=3, log=False, max_iter=None, save=False):
+        if save:
+            from moviepy.editor import concatenate_videoclips, ImageClip
+
         val_scores = []
         logs_all_games = []
-        env = VectorizedEnvs(games)
+        env = VectorizedEnvs(games, observation=self.obs)
         logs = []
         state = env.reset()
         score = {i: 0 for i in state.keys()}
@@ -86,8 +96,9 @@ class PPOAgent():
             state_, reward, done, info = env.step(action)
             if save:
                 img = env.render('rgb_array')
-                cv2.imshow("", img)
-                cv2.waitKey(1)
+                # print(np.shape(img))
+                # cv2.imshow("", img)
+                # cv2.waitKey(1)
                 images.append(img)
             for k, v in reward.items():
                 score[k] += v
@@ -101,8 +112,23 @@ class PPOAgent():
             if np.all([v for _, v in done.items()]):
                 break
         if save:
-            from numpngw import write_apng
-            write_apng('anim_{}.png'.format(games), images, delay=20)
+            # from numpngw import write_apng
+            # write_apng('anim_{}.png'.format(games), images, delay=20)
+
+            # width, height = np.shape(images[0])[:2]
+            # fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+            # video = cv2.VideoWriter('video.avi', fourcc, 30, (width, height), isColor=True)
+            # for image in images:
+            #     print(np.shape(image))
+            #     video.write(image)
+            # video.release()
+            # cv2.destroyAllWindows()
+            clips = [ImageClip(img, duration=0.25) for img in images]
+            final_clip = concatenate_videoclips(clips, method='compose')
+            final_clip.write_videofile("video.mp4", fps=24)
+
+
+
 
         score_history = np.mean([s for _, s in score.items()])
         val_scores.append(score_history)

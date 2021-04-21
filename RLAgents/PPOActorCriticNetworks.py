@@ -3,44 +3,9 @@ import tensorflow_probability as tfp
 import numpy as np
 
 
-def get_neighbor_encodings(neighbor_feats, neighbor_masks, reuse=False):
-    with tf.variable_scope("encoding", reuse=tf.AUTO_REUSE):
-        dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(neighbor_feats)
-        # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
-        dense = dense * neighbor_masks
-    return dense
-
-
-def get_agent_encoding(agent_feats):
-    dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(agent_feats)
-    # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
-    return dense
-
-
-def get_attention_scores(neighbor_encodings, agent_encodings, reuse=False):
-    with tf.variable_scope("attention", reuse=tf.AUTO_REUSE):
-        query_ = tf.reduce_sum(neighbor_encodings, axis=1, keepdims=True)
-        query_2 = tf.reduce_max(neighbor_encodings, axis=1, keepdims=True)
-        query_concat = tf.concat([query_, query_2, agent_encodings], axis=-1)
-        # print(query_)
-        query_embedding = tf.keras.layers.Dense(64)(query_concat)
-        # print(query_embedding)
-        value_embedding = tf.keras.layers.Dense(64)(neighbor_encodings)
-        value_embedding_results = tf.keras.layers.Dense(64, activation=tf.nn.relu)(neighbor_encodings)
-        concat = query_embedding + value_embedding
-        # print(concat)
-        attention_scores = tf.keras.layers.Dense(1, activation=tf.nn.tanh)(concat)
-        # print(attention_scores)
-        attention_scores = tf.nn.softmax(attention_scores, axis=1)
-        # print(attention_scores)
-        context_vector = tf.reduce_sum(attention_scores * value_embedding_results, axis=1)
-        # print(context_vector)
-    return attention_scores, context_vector
-
-
 class Actor():
 
-    def __init__(self, sess, n_states, n_actions, lr, action_space_low, action_space_high,
+    def __init__(self, sess, n_states, n_actions, lr, action_space_low, action_space_high, state_encoder,
                  learn_std=False):
 
         self.lr = lr
@@ -52,22 +17,14 @@ class Actor():
         self.eps = 0.2
         self.isTraining = tf.placeholder(tf.bool, shape=[])
 
-        self.input = tf.placeholder(shape=[None, n_states[0], n_states[1]],
+        self.input = tf.placeholder(shape=[None, *n_states],
                                     dtype=tf.float32, name="actor_state_input")
         self.old_logprobs = tf.placeholder(tf.float32, shape=[None, self.n_actions],
                                            name="old_logprobs")
         self.action_input = tf.placeholder(tf.float32, shape=[None, self.n_actions], name="action")
         self.action = 2 * (self.action_input - self.action_space_low)/(self.action_space_high - self.action_space_low) - 1
         self.advantages = tf.placeholder(tf.float32, shape=[None, ], name='advantages')
-
-        neighbor_feats = self.input[:, 1:, 1:]
-        neighbor_masks = self.input[:, 1:, 0:1]
-        agent_feats = self.input[:, 0:1, 1:]
-        # exit()
-
-        neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
-        agent_encoding = get_agent_encoding(agent_feats)
-        self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
+        self.attention_scores, self.context_vector = state_encoder(self.input)
         self.dense1 = tf.layers.dense(self.context_vector, 128, activation=tf.nn.relu,
                                       kernel_initializer=tf.orthogonal_initializer(1.0),
                                       name='actor_dense1')
@@ -123,7 +80,7 @@ class Actor():
             action, sigma, logprobs = self.sess.run([self.action_rescaled, self.sigma, self.action_logprobs],
                                              {self.input: state, self.isTraining: False,
                                               })
-            # print(sigma)
+
         return action, logprobs
 
     def learn(self, state, action, adv, old_logprobs):
@@ -155,24 +112,17 @@ class Actor():
 
 class Critic:
 
-    def __init__(self, sess, input_shape, lr):
+    def __init__(self, sess, input_shape, lr, state_encoder):
         self.sess = sess
         self.lr = lr
         self.n_states = input_shape
         with tf.variable_scope("critic"):
-            self.input = tf.placeholder(shape=[None, input_shape[0], input_shape[1]],
+            self.input = tf.placeholder(shape=[None, *input_shape],
                                         dtype=tf.float32, name="critic_state_input")
             self.isTraining = tf.placeholder(tf.bool, shape=[])
             self.target = tf.placeholder(tf.float32, shape=[None, 1], name="target")
 
-            neighbor_feats = self.input[:, 1:, 1:]
-            neighbor_masks = self.input[:, 1:, 0:1]
-            agent_feats = self.input[:, 0:1, 1:]
-            # exit()
-
-            neighbor_encodings = get_neighbor_encodings(neighbor_feats, neighbor_masks)
-            agent_encoding = get_agent_encoding(agent_feats)
-            self.attention_scores, self.context_vector = get_attention_scores(neighbor_encodings, agent_encoding)
+            self.attention_scores, self.context_vector = state_encoder(self.input)
 
             self.dense1 = tf.layers.dense(self.context_vector, 128, activation=tf.nn.relu,
                                           kernel_initializer=tf.orthogonal_initializer(1.0))
@@ -184,7 +134,7 @@ class Critic:
             self.train_step = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._loss)
 
     def predict(self, state):
-        if np.array(state).ndim == 2:
+        if np.array(state).ndim == len(self.n_states):
             state = [state]
         return self.sess.run(self.output, feed_dict={self.input: state,
                                                      self.isTraining: False})

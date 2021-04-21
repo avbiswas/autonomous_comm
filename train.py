@@ -27,13 +27,15 @@ for _ in range(10):
     s, r, d, _ = env.step(env.action_space.sample())
     print(s)
 '''
+# obs = "OccupancyGrid"
+obs = "Kinematics"
 if settings.train:
     render = True
-    agent = PPOAgent(env, resume=settings.resume)
+    agent = PPOAgent(env, obs=obs, resume=settings.resume)
     agent.play(test=False, save_model=True)
 
 elif settings.test:
-    agent = PPOAgent(env, resume=True)
-    for _ in range(5):
-        score, _ = agent.test_play(games=1, gui=True)
+    agent = PPOAgent(env, obs=obs, resume=True)
+    for _ in range(1):
+        score, _ = agent.test_play(games=4, gui=True, save=True)
         print(score)

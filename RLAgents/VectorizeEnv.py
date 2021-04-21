@@ -7,17 +7,34 @@ import time
 
 
 class VectorizedEnvs:
-    def __init__(self, num_envs):
+    def __init__(self, num_envs, observation="Kinematics"):
         self.num_envs = num_envs
         self.envs = []
         for _ in range(self.num_envs):
             env = gym.make('highway-v0')
+            if observation == "OccupancyGrid":
+                env.configure({
+                    "observation": {
+                        "type": "OccupancyGrid",
+                        "vehicles_count": 15,
+                        "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
+                        "features_range": {
+                            "x": [-100, 100],
+                            "y": [-100, 100],
+                            "vx": [-20, 20],
+                            "vy": [-20, 20]
+                        },
+                        "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
+                        "grid_step": [5, 5],
+                        "absolute": False
+                    }})
             env.configure({
                 "action": {
                     "type": "ContinuousAction"
                 },
                 "offroad_terminal": True,
                 "simulation_frequency": 8,
+                "duration": 240,
                 "policy_frequency": 4,
                 "offscreen_rendering": True
             })
@@ -52,7 +69,14 @@ class VectorizedEnvs:
         return obs_, rewards, dones, infos
 
     def get_images(self):
-        return [env.render(mode='rgb_array') for env in self.envs]
+        def add_border(img):
+            h, w, c = img.shape
+            padding = [10, 10]
+            bordered_image = np.zeros([h + padding[0]*2, w + padding[1] * 2, c], dtype=np.uint8)
+            bordered_image[padding[0]:-padding[0], padding[1]:-padding[1], :] = img
+            return bordered_image
+
+        return [add_border(env.render(mode='rgb_array')) for env in self.envs]
 
     def render(self, mode='human'):
         imgs = self.get_images()
@@ -68,6 +92,10 @@ class VectorizedEnvs:
 
     def sample_action(self):
         return {i: self.envs[i].action_space.sample() for i in range(self.num_envs)}
+
+    def close(self):
+        for i in range(self.num_envs):
+            self.envs[i].close()
 
 
 if __name__ == "__init__":
