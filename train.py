@@ -28,7 +28,9 @@ for _ in range(10):
     print(s)
 '''
 # obs = "OccupancyGrid"
-obs = "Kinematics"
+# obs = "Kinematics"
+obs = "Image"
+
 if settings.train:
     render = True
     agent = PPOAgent(env, obs=obs, resume=settings.resume)
@@ -37,5 +39,5 @@ if settings.train:
 elif settings.test:
     agent = PPOAgent(env, obs=obs, resume=True)
     for _ in range(1):
-        score, _ = agent.test_play(games=4, gui=True, save=True)
+        score, _ = agent.test_play(games=1, gui=True, save=True)
         print(score)

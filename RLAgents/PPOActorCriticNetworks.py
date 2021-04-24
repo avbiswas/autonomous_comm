@@ -69,7 +69,7 @@ class Actor():
         self.train_op = tf.train.AdamOptimizer(learning_rate=lr).minimize(self._loss)
 
     def predict(self, state, test=False):
-        if np.array(state).ndim == 2:
+        if np.array(state).ndim == len(self.n_states):
             state = [state]
         if test:
             action = self.sess.run(self.mu_rescaled,

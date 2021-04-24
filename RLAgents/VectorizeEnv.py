@@ -24,20 +24,39 @@ class VectorizedEnvs:
                             "vx": [-20, 20],
                             "vy": [-20, 20]
                         },
-                        "grid_size": [[-27.5, 27.5], [-27.5, 27.5]],
-                        "grid_step": [5, 5],
+                        "grid_size": [[-10.5, 10.5], [-10.5, 10.5]],
+                        "grid_step": [3, 3],
                         "absolute": False
                     }})
-            env.configure({
-                "action": {
-                    "type": "ContinuousAction"
-                },
-                "offroad_terminal": True,
-                "simulation_frequency": 8,
-                "duration": 240,
-                "policy_frequency": 4,
-                "offscreen_rendering": True
-            })
+            elif observation == "Kinematics":
+                env.configure({
+                    "action": {
+                        "type": "ContinuousAction"
+                    },
+                    "offroad_terminal": True,
+                    "simulation_frequency": 8,
+                    "duration": 240,
+                    "policy_frequency": 4,
+                    "offscreen_rendering": True
+                })
+            elif observation == "Image":
+                env.configure({
+                    "observation": {
+                        "type": "GrayscaleObservation",
+                        "observation_shape": (128, 64),
+                        "stack_size": 4,
+                        "weights": [0.2989, 0.5870, 0.1140],  # weights for RGB conversion
+                        "scaling": 2
+                    },
+                    "action": {
+                        "type": "ContinuousAction"
+                    },
+                    "offroad_terminal": True,
+                    "simulation_frequency": 8,
+                    "duration": 240,
+                    "policy_frequency": 4,
+                    "offscreen_rendering": True
+                })
             env.reset()
             self.envs.append(env)
         self.action_space = self.envs[0].action_space

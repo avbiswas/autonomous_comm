@@ -52,7 +52,7 @@ def multiheaded_attention(query, key, n_heads, units,
 
 
 def NeighborhoodEncoder(input):
-    with tf.variable_scope("Conv", reuse=tf.AUTO_REUSE):
+    with tf.variable_scope("Nenc", reuse=tf.AUTO_REUSE):
         conv = tf.keras.layers.Conv2D(filters=32, kernel_size=5, strides=1, padding='same',
                                       data_format='channels_first', activation=tf.nn.relu)(input)
         conv = tf.keras.layers.Conv2D(filters=32, kernel_size=5, strides=2, padding='same',
@@ -61,6 +61,26 @@ def NeighborhoodEncoder(input):
                                       data_format='channels_first', activation=tf.nn.relu)(conv)
 
         conv = tf.keras.layers.Flatten()(conv)
+        return None, conv
+
+
+def ImageEncoder(input):
+    with tf.variable_scope("Conv", reuse=tf.AUTO_REUSE):
+        print(input)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=5, strides=2, padding='same',
+                                      data_format='channels_first', activation=tf.nn.relu)(input)
+        print(conv)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=5, strides=2, padding='same',
+                                      data_format='channels_first', activation=tf.nn.relu)(conv)
+        print(conv)
+        conv = tf.keras.layers.MaxPool2D(data_format='channels_first')(conv)
+        print(conv)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=5, strides=2, padding='same',
+                                      data_format='channels_first', activation=tf.nn.relu)(conv)
+
+        print(conv)
+        conv = tf.keras.layers.Flatten()(conv)
+        print(conv)
         return None, conv
 
 
@@ -73,7 +93,8 @@ def AttentionKinematicsEncoder(input, heads=8):
         return dense
 
     def get_agent_encoding(agent_feats):
-        dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(agent_feats)
+        with tf.variable_scope("agent_encoding", reuse=tf.AUTO_REUSE):
+            dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(agent_feats)
         # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
         return dense
 

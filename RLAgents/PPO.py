@@ -26,7 +26,7 @@ class PPOAgent():
         self.sess = tf.Session()
 
         # self.env = env
-        self.num_envs = 24
+        self.num_envs = 2
         self.obs = obs
         self.env = VectorizedEnvs(self.num_envs, observation=self.obs)
 
@@ -34,6 +34,8 @@ class PPOAgent():
             state_encoder = AttentionKinematicsEncoder
         elif self.obs == "OccupancyGrid":
             state_encoder = NeighborhoodEncoder
+        elif self.obs == "Image":
+            state_encoder = ImageEncoder
         self.doScale = doScale
 
         # if self.doScale:
@@ -57,8 +59,8 @@ class PPOAgent():
         self.checkpoint_file_temp = os.path.join('./chkpt2_{}'.format(self.obs),
                                                  '{}_network.ckpt'.format("car"))
 
-        self.batch_size = 128
-        self.memory_buffer_length = 1280
+        self.batch_size = 16
+        self.memory_buffer_length = 128
         self.epochs = 10
         if resume:
             self.load_checkpoint()
