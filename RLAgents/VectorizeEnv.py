@@ -46,7 +46,7 @@ class VectorizedEnvs:
                         "observation_shape": (128, 64),
                         "stack_size": 4,
                         "weights": [0.2989, 0.5870, 0.1140],  # weights for RGB conversion
-                        "scaling": 2
+                        "scaling": 1.25
                     },
                     "action": {
                         "type": "ContinuousAction"

@@ -67,6 +67,7 @@ def NeighborhoodEncoder(input):
 def ImageEncoder(input):
     with tf.variable_scope("Conv", reuse=tf.AUTO_REUSE):
         print(input)
+        input = input/127.5 - 1
         conv = tf.keras.layers.Conv2D(filters=64, kernel_size=12, strides=2, padding='same',
                                       data_format='channels_first', activation=tf.nn.relu)(input)
         print(conv)
