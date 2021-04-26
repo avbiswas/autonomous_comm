@@ -11,7 +11,7 @@ class VectorizedEnvs:
         self.num_envs = num_envs
         self.envs = []
         for _ in range(self.num_envs):
-            env = gym.make('highway-v0')
+            env = gym.make('merge-v0')
             if observation == "OccupancyGrid":
                 env.configure({
                     "observation": {
@@ -24,6 +24,7 @@ class VectorizedEnvs:
                             "vx": [-20, 20],
                             "vy": [-20, 20]
                         },
+                        "duration": 300,
                         "grid_size": [[-10.5, 10.5], [-10.5, 10.5]],
                         "grid_step": [3, 3],
                         "absolute": False
