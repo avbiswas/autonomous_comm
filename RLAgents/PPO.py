@@ -26,7 +26,7 @@ class PPOAgent():
         self.sess = tf.Session()
 
         # self.env = env
-        self.num_envs = 2
+        self.num_envs = 24
         self.obs = obs
         self.env = VectorizedEnvs(self.num_envs, observation=self.obs)
 
@@ -59,8 +59,8 @@ class PPOAgent():
         self.checkpoint_file_temp = os.path.join('./chkpt2_{}'.format(self.obs),
                                                  '{}_network.ckpt'.format("car"))
 
-        self.batch_size = 16
-        self.memory_buffer_length = 128
+        self.batch_size = 128
+        self.memory_buffer_length = 1280
         self.epochs = 10
         if resume:
             self.load_checkpoint()
@@ -96,6 +96,8 @@ class PPOAgent():
 
             action, _ = self.act(state, test=True)
             state_, reward, done, info = env.step(action)
+            # cv2.imshow("", state[0][-1].astype('uint8'))
+            # cv2.waitKey(1)
             if save:
                 img = env.render('rgb_array')
                 # print(np.shape(img))
@@ -128,9 +130,6 @@ class PPOAgent():
             clips = [ImageClip(img, duration=0.25) for img in images]
             final_clip = concatenate_videoclips(clips, method='compose')
             final_clip.write_videofile("video.mp4", fps=24)
-
-
-
 
         score_history = np.mean([s for _, s in score.items()])
         val_scores.append(score_history)
@@ -168,7 +167,7 @@ class PPOAgent():
             batch_advantage[i] = last_GAE
             batch_target[i] = delta + value_state
 
-        batch_advantage = (batch_advantage - np.mean(batch_advantage))/np.std(batch_advantage)
+        batch_advantage = (batch_advantage - np.mean(batch_advantage))/(np.std(batch_advantage) + 1e-5)
         batch_target = np.expand_dims(batch_target, 1)
         length = len(batch_state)
         actor_loss = 0

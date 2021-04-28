@@ -55,7 +55,7 @@ class VectorizedEnvs:
                     "offroad_terminal": True,
                     "simulation_frequency": 8,
                     "duration": 240,
-                    "policy_frequency": 2,
+                    "policy_frequency": 4,
                     "offscreen_rendering": True
                 })
             env.reset()

@@ -67,20 +67,24 @@ def NeighborhoodEncoder(input):
 def ImageEncoder(input):
     with tf.variable_scope("Conv", reuse=tf.AUTO_REUSE):
         print(input)
+        init = tf.random_normal_initializer(0, 0.02)
         input = input/127.5 - 1
-        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=12, strides=2, padding='same',
-                                      data_format='channels_first', activation=tf.nn.relu)(input)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=8, strides=4,
+                                      data_format='channels_first', kernel_initializer=init,
+                                      activation=tf.nn.relu)(input)
         print(conv)
-        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=8, strides=2, padding='same',
-                                      data_format='channels_first', activation=tf.nn.relu)(conv)
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides=2,
+                                      data_format='channels_first', kernel_initializer=init,
+                                      activation=tf.nn.relu)(conv)
         print(conv)
-        conv = tf.keras.layers.MaxPool2D(data_format='channels_first')(conv)
+        # conv = tf.keras.layers.A(data_format='channels_first')(conv)
         print(conv)
-        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=8, strides=2, padding='same',
-                                      data_format='channels_first', activation=tf.nn.relu)(conv)
-
+        conv = tf.keras.layers.Conv2D(filters=64, kernel_size=3, strides=1,
+                                      data_format='channels_first', kernel_initializer=init,
+                                      activation=tf.nn.relu)(conv)
         print(conv)
         conv = tf.keras.layers.Flatten()(conv)
+        conv = tf.keras.layers.Dense(512, activation=tf.nn.relu)(conv)
         print(conv)
         return None, conv
 
