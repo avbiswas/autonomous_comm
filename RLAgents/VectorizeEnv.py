@@ -11,7 +11,7 @@ class VectorizedEnvs:
         self.num_envs = num_envs
         self.envs = []
         for _ in range(self.num_envs):
-            env = gym.make('merge-v0')
+            env = gym.make('intersection-v0')
             if observation == "OccupancyGrid":
                 env.configure({
                     "observation": {
@@ -49,9 +49,9 @@ class VectorizedEnvs:
                         "weights": [0.2989, 0.5870, 0.1140],  # weights for RGB conversion
                         "scaling": 1.25
                     },
-                    "action": {
-                        "type": "ContinuousAction"
-                    },
+                    # "action": {
+                    #     "type": "ContinuousAction"
+                    # },
                     "offroad_terminal": True,
                     "simulation_frequency": 8,
                     "duration": 240,

@@ -1,4 +1,5 @@
 from .PPOActorCriticNetworks import Actor, Critic
+from .PPOActorCriticDiscreteNetworks import ActorDiscrete, CriticDiscrete
 from .memory_GAE import VectorizedMemory
 import numpy as np
 import tensorflow as tf
@@ -41,20 +42,28 @@ class PPOAgent():
         # if self.doScale:
         #    self.init_scaler()
         input_shape = self.env.observation_space.shape
-        output_shape = self.env.action_space.shape[0]
-        self.action_low = self.env.action_space.low
-        self.action_high = self.env.action_space.high
 
-        self.actor = Actor(self.sess, input_shape, output_shape, 5e-4, self.action_low,
-                           self.action_high, state_encoder=state_encoder, learn_std=True)
-        self.critic = Critic(self.sess, input_shape, 1e-3,  state_encoder=state_encoder)
+        if isinstance(self.env.action_space, gym.spaces.Box):
+            output_shape = self.env.action_space.shape[0]
+            self.action_low = self.env.action_space.low
+            self.action_high = self.env.action_space.high
+
+            self.actor = Actor(self.sess, input_shape, output_shape, 5e-4, self.action_low,
+                               self.action_high, state_encoder=state_encoder, learn_std=True)
+            self.critic = Critic(self.sess, input_shape, 1e-3,  state_encoder=state_encoder)
+        else:
+            output_shape = self.env.action_space.n
+
+            self.actor = ActorDiscrete(self.sess, input_shape, output_shape, 5e-4, state_encoder=state_encoder)
+            self.critic = CriticDiscrete(self.sess, input_shape, 1e-3,  state_encoder=state_encoder)
+
         self.sess.run(tf.group(tf.global_variables_initializer(),
                       tf.local_variables_initializer()))
         self.gamma = 0.99
         self.lambd = 0.95
         self.memory = VectorizedMemory(self.num_envs)
         self.saver = tf.train.Saver()
-        self.checkpoint_file = os.path.join('./{}_{}'.format(dir, self.obs),
+        self.checkpoint_file = os.path.join('./{}_{}_discrete'.format(dir, self.obs),
                                             '{}_network.ckpt'.format("car"))
         self.checkpoint_file_temp = os.path.join('./chkpt2_{}'.format(self.obs),
                                                  '{}_network.ckpt'.format("car"))
