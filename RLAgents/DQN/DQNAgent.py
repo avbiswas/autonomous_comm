@@ -8,15 +8,15 @@ import gym
 from ..networks import *
 
 
-TRAIN_START = 100_000
+TRAIN_START = 1_000
 BUFFER_LENGTH = 100_000
-FINAL_EXPLORATION_FRAME = 1_000_000
+FINAL_EXPLORATION_FRAME = 200_000
 MIN_EPS = 0.1
 STEPS_PER_NETWORK_UPDATE = 4
 DISCOUNT_FACTOR = 0.99
-STEPS_PER_TARGET_UPDATE = 10_000
+STEPS_PER_TARGET_UPDATE = 500
 MINIBATCH_SIZE = 32
-TRAINING_STEPS = 50_000_000
+TRAINING_STEPS = 1_000_000
 BETA_ANNEAL_STEPS = 2_000_000
 LOG_STEPS = 500
 LOG_FILE = "dqn_log.txt"
@@ -27,6 +27,7 @@ def log(text):
         f.write("{}\n".format(text))
 
 # print = log
+
 
 class DQNAgent:
     def __init__(self, env_fn, model_key, obs="Kinematics", resume=False,
@@ -115,7 +116,6 @@ class DQNAgent:
                 if np.random.random() > eps:
                     s_copy = np.copy(s)
                     a = np.argmax(self.q_network.predict(s_copy))
-                    print(a)
                 else:
                     a = self.env.action_space.sample()
                 s_, r, t, _ = self.env.step(a)
