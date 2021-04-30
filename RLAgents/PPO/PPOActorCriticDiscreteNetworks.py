@@ -69,6 +69,14 @@ class ActorDiscrete:
 
         return action, logprobs
 
+    def get_probs(self, state):
+        if np.array(state).ndim == len(self.n_states):
+            state = [state]
+        action = self.sess.run(self.mu,
+                               {self.input: state, self.isTraining: False,
+                                })
+        return action
+
     def learn(self, state, action, adv, old_logprobs):
         '''
         _, loss, new_logprobs, old_logprobs, probability_ratio, \

@@ -7,59 +7,11 @@ import time
 
 
 class VectorizedEnvs:
-    def __init__(self, num_envs, observation="Kinematics"):
+    def __init__(self, env_fn, num_envs, observation="Kinematics"):
         self.num_envs = num_envs
         self.envs = []
         for _ in range(self.num_envs):
-            env = gym.make('intersection-v0')
-            if observation == "OccupancyGrid":
-                env.configure({
-                    "observation": {
-                        "type": "OccupancyGrid",
-                        "vehicles_count": 15,
-                        "features": ["presence", "x", "y", "vx", "vy", "cos_h", "sin_h"],
-                        "features_range": {
-                            "x": [-100, 100],
-                            "y": [-100, 100],
-                            "vx": [-20, 20],
-                            "vy": [-20, 20]
-                        },
-                        "duration": 300,
-                        "grid_size": [[-10.5, 10.5], [-10.5, 10.5]],
-                        "grid_step": [3, 3],
-                        "absolute": False
-                    }})
-            elif observation == "Kinematics":
-                env.configure({
-                    "action": {
-                        "type": "ContinuousAction"
-                    },
-                    "offroad_terminal": True,
-                    "simulation_frequency": 8,
-                    "duration": 240,
-                    "policy_frequency": 4,
-                    "offscreen_rendering": True
-                })
-            elif observation == "Image":
-                env.configure({
-                    "observation": {
-                        "type": "GrayscaleObservation",
-                        "observation_shape": (128, 64),
-                        "stack_size": 4,
-                        "weights": [0.2989, 0.5870, 0.1140],  # weights for RGB conversion
-                        "scaling": 1.25
-                    },
-                    # "action": {
-                    #     "type": "ContinuousAction"
-                    # },
-                    "offroad_terminal": True,
-                    "simulation_frequency": 8,
-                    "duration": 240,
-                    "policy_frequency": 4,
-                    "offscreen_rendering": True
-                })
-            env.reset()
-            self.envs.append(env)
+            self.envs.append(env_fn())
         self.action_space = self.envs[0].action_space
         self.observation_space = self.envs[0].observation_space
         self.dones = np.zeros(self.num_envs)

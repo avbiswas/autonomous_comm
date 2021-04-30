@@ -10,7 +10,7 @@ import os
 import argparse
 import cv2
 from .VectorizeEnv import VectorizedEnvs
-from .networks import *
+from ..networks import *
 
 
 def log(text):
@@ -23,18 +23,20 @@ def log(text):
 
 class PPOAgent():
 
-    def __init__(self, env_name, resume=False, doScale=False, dir='chkpt', obs="Kinematics"):
+    def __init__(self, env_fn, resume=False, doScale=False, obs='Kinematics', model_key="dir"):
         self.sess = tf.Session()
 
         # self.env = env
         self.num_envs = 24
+        self.env_fn = env_fn
+        self.model_key = model_key
         self.obs = obs
-        self.env = VectorizedEnvs(self.num_envs, observation=self.obs)
+        print(self.env_fn)
+
+        self.env = VectorizedEnvs(self.env_fn, self.num_envs)
 
         if self.obs == "Kinematics":
             state_encoder = AttentionKinematicsEncoder
-        elif self.obs == "OccupancyGrid":
-            state_encoder = NeighborhoodEncoder
         elif self.obs == "Image":
             state_encoder = ImageEncoder
         self.doScale = doScale
@@ -63,10 +65,10 @@ class PPOAgent():
         self.lambd = 0.95
         self.memory = VectorizedMemory(self.num_envs)
         self.saver = tf.train.Saver()
-        self.checkpoint_file = os.path.join('./{}_{}_discrete'.format(dir, self.obs),
-                                            '{}_network.ckpt'.format("car"))
-        self.checkpoint_file_temp = os.path.join('./chkpt2_{}'.format(self.obs),
-                                                 '{}_network.ckpt'.format("car"))
+        self.checkpoint_file = os.path.join('./ppo_models/network_{}'.format(self.model_key),
+                                            'model.ckpt')
+        self.checkpoint_file_temp = os.path.join('./ppo_models/bkp_{}'.format(self.model_key),
+                                                 'model.ckpt')
 
         self.batch_size = 128
         self.memory_buffer_length = 1280
@@ -84,7 +86,6 @@ class PPOAgent():
         predicted_action, logprobs = self.actor.predict(state, test)
         predicted_action = {i: a for i, a in zip(state_dict.keys(), predicted_action)}
         logprobs = {i: lp for i, lp in zip(state_dict.keys(), logprobs)}
-        # print(predicted_action)
         return predicted_action, logprobs
 
     def test_play(self, gui=False, games=3, log=False, max_iter=None, save=False):
@@ -93,26 +94,25 @@ class PPOAgent():
 
         val_scores = []
         logs_all_games = []
-        env = VectorizedEnvs(games, observation=self.obs)
+        env = VectorizedEnvs(self.env_fn, games, observation=self.obs)
         logs = []
         state = env.reset()
         score = {i: 0 for i in state.keys()}
         steps = 0
         images = []
+        state_images = []
         while True:
             if gui:
                 env.render()
 
             action, _ = self.act(state, test=True)
             state_, reward, done, info = env.step(action)
-            # cv2.imshow("", state[0][-1].astype('uint8'))
-            # cv2.waitKey(1)
             if save:
                 img = env.render('rgb_array')
-                # print(np.shape(img))
-                # cv2.imshow("", img)
-                # cv2.waitKey(1)
                 images.append(img)
+                state_img = state_[0][-1].T.astype('uint8')
+                state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
+                state_images.append(state_img)
             for k, v in reward.items():
                 score[k] += v
 
@@ -125,20 +125,13 @@ class PPOAgent():
             if np.all([v for _, v in done.items()]):
                 break
         if save:
-            # from numpngw import write_apng
-            # write_apng('anim_{}.png'.format(games), images, delay=20)
-
-            # width, height = np.shape(images[0])[:2]
-            # fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
-            # video = cv2.VideoWriter('video.avi', fourcc, 30, (width, height), isColor=True)
-            # for image in images:
-            #     print(np.shape(image))
-            #     video.write(image)
-            # video.release()
-            # cv2.destroyAllWindows()
             clips = [ImageClip(img, duration=0.25) for img in images]
             final_clip = concatenate_videoclips(clips, method='compose')
             final_clip.write_videofile("video.mp4", fps=24)
+
+            clips = [ImageClip(img, duration=0.25) for img in state_images]
+            final_clip = concatenate_videoclips(clips, method='compose')
+            final_clip.write_videofile("video_state_obs.mp4", fps=24)
 
         score_history = np.mean([s for _, s in score.items()])
         val_scores.append(score_history)
@@ -270,33 +263,3 @@ class PPOAgent():
                             self.save_checkpoint()
                             best_validation_score = validation_score
                             print("Checkpoint Updated")
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--env", type=str, default="MountainCarContinuous-v0")
-    parser.add_argument("--test", action="store_true", default=False)
-    parser.add_argument("--scale", action="store_true", default=False)
-    parser.add_argument("--resume", action="store_true", default=False)
-    parser.add_argument("--dir", type=str, default="chkpt")
-    settings = parser.parse_args()
-    if not settings.env.find("Bullet") == -1:
-        import pybullet_envs
-
-    if not settings.test:
-        env = gym.make(settings.env)
-    else:
-        if settings.env.find("Bullet") == -1:
-            env = gym.make(settings.env)
-        else:
-            env = gym.make(settings.env, render=True)
-    agent = PPOAgent(env, settings.resume, settings.scale, dir=settings.dir)
-    try:
-        agent.play(settings.test, True)
-    except KeyboardInterrupt:
-        inp = input("Wanna save model? Press Y.\n")
-        if inp == 'Y' or inp == 'y' and not settings.test:
-            agent.save_checkpoint()
-    finally:
-        print("okbye!")
