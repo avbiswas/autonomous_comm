@@ -25,9 +25,13 @@ def multiheaded_attention(query, key, n_heads, units,
         key_embedding = tf.keras.layers.Dense(units)(key)
         value_embedding = tf.keras.layers.Dense(units, activation=tf.nn.relu)(key)
         print(query_embedding, key_embedding)
+
         query_reshaped = tf.reshape(query_embedding, (-1, 1, n_heads, emb_size))
-        key_reshaped = tf.reshape(key_embedding, (-1, 4, n_heads, emb_size))
-        value_reshaped = tf.reshape(value_embedding, (-1, 4, n_heads, emb_size))
+        key_reshaped = tf.reshape(key_embedding, (-1, tf.shape(key)[1], n_heads, emb_size))
+        value_reshaped = tf.reshape(value_embedding, (-1, tf.shape(key)[1], n_heads, emb_size))
+        print(query_reshaped, key_reshaped)
+
+        # exit()
 
         query_reshaped = tf.transpose(query_reshaped, [0, 2, 1, 3])
         key_reshaped = tf.transpose(key_reshaped, [0, 2, 1, 3])
