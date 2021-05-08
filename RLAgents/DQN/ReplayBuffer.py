@@ -5,15 +5,15 @@ from collections import deque
 
 class ReplayBuffer:
     def __init__(self, state_shape, action_shape, use_priority=False,
-                 buffer_length=1_000_000, alpha=0.6, normalize_reward_coeff=1):
+                 buffer_length=1_000_000, alpha=0.6, normalize_reward_coeff=1, dtype=np.int8):
         # self.replay_buffer = deque(maxlen=buffer_length)
         self.buffer_length = buffer_length
         self.use_priority = use_priority
         self.normalize_reward_coeff = normalize_reward_coeff
-        self.states_buffer = np.zeros([self.buffer_length, *state_shape], dtype=np.uint8)
+        self.states_buffer = np.zeros([self.buffer_length, *state_shape], dtype=dtype)
         self.action_buffer = np.zeros([self.buffer_length, ], np.int8)
         self.reward_buffer = np.zeros([self.buffer_length, ])
-        self.next_states_buffer = np.zeros([self.buffer_length, *state_shape], dtype=np.uint8)
+        self.next_states_buffer = np.zeros([self.buffer_length, *state_shape], dtype=dtype)
         self.terminal_buffer = np.zeros([self.buffer_length, ], np.int8)
         self.alpha = alpha
         if self.use_priority:

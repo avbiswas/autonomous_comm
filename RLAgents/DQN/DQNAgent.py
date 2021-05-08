@@ -8,14 +8,14 @@ import gym
 from ..networks import *
 
 
-TRAIN_START = 1_000
+TRAIN_START = 500
 BUFFER_LENGTH = 100_000
 FINAL_EXPLORATION_FRAME = 200_000
 MIN_EPS = 0.1
 STEPS_PER_NETWORK_UPDATE = 4
 DISCOUNT_FACTOR = 0.99
 STEPS_PER_TARGET_UPDATE = 500
-MINIBATCH_SIZE = 32
+MINIBATCH_SIZE = 64
 TRAINING_STEPS = 1_000_000
 BETA_ANNEAL_STEPS = 2_000_000
 LOG_STEPS = 500
@@ -60,13 +60,15 @@ class DQNAgent:
                                               buffer_length=BUFFER_LENGTH,
                                               use_priority=self.use_priority,
                                               alpha=0.6,
-                                              normalize_reward_coeff=normalize_reward_coeff)
+                                              normalize_reward_coeff=normalize_reward_coeff,
+                                              dtype=env.observation_space.dtype)
         else:
             self.replay_buffer = ReplayBuffer(state_shape=env.observation_space.shape,
                                               action_shape=1,
                                               buffer_length=BUFFER_LENGTH,
                                               use_priority=self.use_priority,
-                                              normalize_reward_coeff=normalize_reward_coeff)
+                                              normalize_reward_coeff=normalize_reward_coeff,
+                                              dtype=env.observation_space.dtype)
 
         self.network_loss = deque(maxlen=1000)
         self.rewards = deque(maxlen=1000)

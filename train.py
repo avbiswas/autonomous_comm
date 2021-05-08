@@ -13,11 +13,14 @@ settings = parser.parse_args()
 
 env_name = 'intersection-v0'
 
-# obs = "Kinematics"
-obs = "Image"
+obs = "Kinematics"
+# obs = "Image"
 
 # action = "ContinuousAction"
 action = "DiscreteMetaAction"
+
+# algorithm = "PPO"
+algorithm = "DQN"
 
 
 def env():
@@ -26,7 +29,7 @@ def env():
         env.configure({
             "offroad_terminal": True,
             "simulation_frequency": 8,
-            "duration": 240,
+            "duration": 13,
             "policy_frequency": 4,
             "offscreen_rendering": True
         })
@@ -59,7 +62,7 @@ def env():
 
 
 if settings.train:
-    if action == "DiscreteMetaAction":
+    if algorithm == "DQN":
         agent = DQNAgent(env,
                          model_key="dqn_{}_{}_{}".format(env_name, obs, action),
                          obs=obs,
@@ -68,11 +71,11 @@ if settings.train:
         agent.learn()
     else:
         agent = PPOAgent(env, obs=obs, resume=settings.resume,
-                         model_key="dqn_{}_{}_{}".format(env_name, obs, action))
+                         model_key="ppo_{}_{}_{}".format(env_name, obs, action))
         agent.play(test=False, save_model=True)
 
 elif settings.test:
-    if action == "DiscreteMetaAction":
+    if algorithm == "DQN":
         agent = DQNAgent(env,
                          model_key="dqn_{}_{}_{}".format(env_name, obs, action),
                          obs=obs,
@@ -82,7 +85,7 @@ elif settings.test:
         agent.test_policy(games=1, render=True, save=True)
     else:
         agent = PPOAgent(env, obs=obs, resume=True,
-                         model_key="dqn_{}_{}_{}".format(env_name, obs, action))
+                         model_key="ppo_{}_{}_{}".format(env_name, obs, action))
 
     for _ in range(1):
         score, _ = agent.test_play(games=1, gui=True, save=True)
