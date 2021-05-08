@@ -211,17 +211,23 @@ class DQNAgent:
                 s_copy = np.copy(s)
                 a = np.argmax(self.q_network.predict(s_copy))
                 s_, r, t, _ = self.env.step(a)
+                print(self.q_network.predict(s_copy), a, r)
+                if render:
+                    self.env.render()
                 if save:
                     img = self.env.render('rgb_array')
                     images.append(img)
                     if self.obs == 'Image':
-                        state_img = s_[-1].T.astype('uint8')
+                        diff_images = s_[1:] - s_[:-1]
+                        state_img = np.concatenate([st.T for st in s_], axis=1).astype('uint8')
+                        diff_images = np.concatenate([d.T for d in diff_images], axis=1).astype('uint8')
+                        state_img = np.concatenate([state_img, diff_images], axis=1)
+                        # print(np.shape(state_img), np.shape(s_))
                         state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
+                        # print(np.shape(state_img))
                         state_images.append(state_img)
                 episode_reward += r
                 s = s_
-                if render:
-                    self.env.render()
                 if t:
                     break
             rewards.append(episode_reward)
