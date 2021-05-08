@@ -213,7 +213,6 @@ class DQNAgent:
                 s_copy = np.copy(s)
                 a = np.argmax(self.q_network.predict(s_copy))
                 s_, r, t, _ = self.env.step(a)
-                print(self.q_network.predict(s_copy), a, r)
                 if render:
                     self.env.render()
                 if save:
