@@ -93,18 +93,18 @@ def ImageEncoder(input):
         return None, conv
 
 
-def AttentionKinematicsEncoder(input, heads=8):
+def AttentionKinematicsEncoder(input, heads=16):
     def get_neighbor_encodings(neighbor_feats, neighbor_masks, reuse=False):
         with tf.variable_scope("encoding", reuse=tf.AUTO_REUSE):
-            dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(neighbor_feats)
-            # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+            dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(neighbor_feats)
+            dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
             dense = dense * neighbor_masks
         return dense
 
     def get_agent_encoding(agent_feats):
         with tf.variable_scope("agent_encoding", reuse=tf.AUTO_REUSE):
-            dense = tf.keras.layers.Dense(64, activation=tf.nn.tanh)(agent_feats)
-        # dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
+            dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(agent_feats)
+            dense = tf.keras.layers.Dense(32, activation=tf.nn.tanh)(dense)
         return dense
 
     def get_attention_scores(neighbor_encodings, agent_encodings, reuse=False):
@@ -119,7 +119,7 @@ def AttentionKinematicsEncoder(input, heads=8):
             return multiheaded_attention(query=query_concat,
                                          key=neighbor_encodings,
                                          n_heads=heads,
-                                         units=heads*32)
+                                         units=heads*64)
 
     neighbor_feats = input[:, 1:, 1:]
     neighbor_masks = input[:, 1:, 0:1]

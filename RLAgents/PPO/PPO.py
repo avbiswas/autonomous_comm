@@ -57,7 +57,7 @@ class PPOAgent():
             output_shape = self.env.action_space.n
 
             self.actor = ActorDiscrete(self.sess, input_shape, output_shape, 5e-4, state_encoder=state_encoder)
-            self.critic = CriticDiscrete(self.sess, input_shape, 1e-3,  state_encoder=state_encoder)
+            self.critic = CriticDiscrete(self.sess, input_shape, 5e-4,  state_encoder=state_encoder)
 
         self.sess.run(tf.group(tf.global_variables_initializer(),
                       tf.local_variables_initializer()))
@@ -110,9 +110,9 @@ class PPOAgent():
             if save:
                 img = env.render('rgb_array')
                 images.append(img)
-                state_img = state_[0][-1].T.astype('uint8')
-                state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
-                state_images.append(state_img)
+                # state_img = state_[0][-1].T.astype('uint8')
+                # state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
+                # state_images.append(state_img)
             for k, v in reward.items():
                 score[k] += v
 
@@ -125,13 +125,13 @@ class PPOAgent():
             if np.all([v for _, v in done.items()]):
                 break
         if save:
-            clips = [ImageClip(img, duration=0.25) for img in images]
+            clips = [ImageClip(img, duration=0.1) for img in images]
             final_clip = concatenate_videoclips(clips, method='compose')
             final_clip.write_videofile("video.mp4", fps=24)
 
-            clips = [ImageClip(img, duration=0.25) for img in state_images]
-            final_clip = concatenate_videoclips(clips, method='compose')
-            final_clip.write_videofile("video_state_obs.mp4", fps=24)
+            # clips = [ImageClip(img, duration=0.25) for img in state_images]
+            # final_clip = concatenate_videoclips(clips, method='compose')
+            # final_clip.write_videofile("video_state_obs.mp4", fps=24)
 
         score_history = np.mean([s for _, s in score.items()])
         val_scores.append(score_history)
@@ -248,7 +248,7 @@ class PPOAgent():
                     actor_losses += actor_loss_
                     critic_losses += critic_loss_
                     if last_interval >= query_intervals:
-                        validation_score, _ = self.test_play(False, 10)
+                        validation_score, _ = self.test_play(False, 25)
                         print("Games: {}, Score: {:.2f}, Max Score: {:.2f}, Validation: {:.2f},"
                               .format((games+1)*self.num_envs, score_history/last_interval,
                                       max_score, validation_score) +

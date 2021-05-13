@@ -9,13 +9,13 @@ from ..networks import *
 
 
 TRAIN_START = 500
-BUFFER_LENGTH = 100_000
-FINAL_EXPLORATION_FRAME = 200_000
+BUFFER_LENGTH = 500_000
+FINAL_EXPLORATION_FRAME = 500_000
 MIN_EPS = 0.1
 STEPS_PER_NETWORK_UPDATE = 4
 DISCOUNT_FACTOR = 0.99
-STEPS_PER_TARGET_UPDATE = 500
-MINIBATCH_SIZE = 64
+STEPS_PER_TARGET_UPDATE = 1_000
+MINIBATCH_SIZE = 256
 TRAINING_STEPS = 1_000_000
 BETA_ANNEAL_STEPS = 2_000_000
 LOG_STEPS = 500
@@ -186,7 +186,7 @@ class DQNAgent:
 
     def write_log(self):
         mean_rewards = np.mean(self.rewards)
-        eval_rewards = self.test_policy(games=10)
+        eval_rewards = self.test_policy(games=25)
         mean_network_loss = np.mean(self.network_loss)
         text = "Num Steps: {}, Num Episodes: {}, Mean Rewards: {:.2f}, Evaluation Rewards: {:.2f}, Mean Network Loss: {:.2f}, Q Updates: {}, Target Updates: {}, Best Model: {:.2f}".format(
              self.total_steps_taken, self.n_episodes, mean_rewards, eval_rewards, mean_network_loss, self.n_q_updates, self.n_target_updates, self.best_mean_reward)
@@ -219,10 +219,10 @@ class DQNAgent:
                     img = self.env.render('rgb_array')
                     images.append(img)
                     if self.obs == 'Image':
-                        diff_images = s_[1:] - s_[:-1]
+                        # diff_images = s_[1:] - s_[:-1]
                         state_img = np.concatenate([st.T for st in s_], axis=1).astype('uint8')
-                        diff_images = np.concatenate([d.T for d in diff_images], axis=1).astype('uint8')
-                        state_img = np.concatenate([state_img, diff_images], axis=1)
+                        # diff_images = np.concatenate([d.T for d in diff_images], axis=1).astype('uint8')
+                        # state_img = np.concatenate([state_img, diff_images], axis=1)
                         # print(np.shape(state_img), np.shape(s_))
                         state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
                         # print(np.shape(state_img))
@@ -238,8 +238,8 @@ class DQNAgent:
                 final_clip = concatenate_videoclips(clips, method='compose')
                 final_clip.write_videofile("video_dqn.mp4", fps=24)
 
-                clips = [ImageClip(img, duration=0.1) for img in state_images]
-                final_clip = concatenate_videoclips(clips, method='compose')
-                final_clip.write_videofile("video_dqn_state_obs.mp4", fps=24)
+                # clips = [ImageClip(img, duration=0.1) for img in state_images]
+                # final_clip = concatenate_videoclips(clips, method='compose')
+                # final_clip.write_videofile("video_dqn_state_obs.mp4", fps=24)
 
         return np.mean(rewards)
