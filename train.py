@@ -29,8 +29,8 @@ def env():
         env.configure({
             "offroad_terminal": True,
             "simulation_frequency": 8,
-            "duration": 13,
-            "policy_frequency": 4,
+            "duration": 18,
+            "policy_frequency": 3,
             "offscreen_rendering": True
         })
     elif obs == "Image":
@@ -87,6 +87,6 @@ elif settings.test:
         agent = PPOAgent(env, obs=obs, resume=True,
                          model_key="ppo_{}_{}_{}".format(env_name, obs, action))
 
-    for _ in range(1):
-        score, _ = agent.test_play(games=1, gui=True, save=True)
-        print(score, len(_[0]))
+        for _ in range(1):
+            score, _ = agent.test_play(games=1, gui=True, save=True)
+            print(score, len(_[0]))
