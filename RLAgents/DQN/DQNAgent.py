@@ -200,11 +200,8 @@ class DQNAgent:
         self.q_network.load(model_name)
 
     def test_policy(self, games=1, render=False, save=False):
-        if save:
-            from moviepy.editor import concatenate_videoclips, ImageClip
-            import cv2
+        import cv2
         images = []
-        state_images = []
         rewards = []
         for _ in range(games):
             s = self.env.reset()
@@ -214,19 +211,16 @@ class DQNAgent:
                 a = np.argmax(self.q_network.predict(s_copy))
                 s_, r, t, _ = self.env.step(a)
                 if render:
-                    self.env.render()
+                    img = self.env.render('rgb_array')
+                    cv2.imshow("Testing", img)
+                    cv2.waitKey(1)
                 if save:
                     img = self.env.render('rgb_array')
                     images.append(img)
-                    if self.obs == 'Image':
-                        # diff_images = s_[1:] - s_[:-1]
-                        state_img = np.concatenate([st.T for st in s_], axis=1).astype('uint8')
-                        # diff_images = np.concatenate([d.T for d in diff_images], axis=1).astype('uint8')
-                        # state_img = np.concatenate([state_img, diff_images], axis=1)
-                        # print(np.shape(state_img), np.shape(s_))
-                        state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
-                        # print(np.shape(state_img))
-                        state_images.append(state_img)
+                    # if self.obs == 'Image':
+                    #     state_img = np.concatenate([st.T for st in s_], axis=1).astype('uint8')
+                    #     state_img = cv2.cvtColor(state_img, cv2.COLOR_GRAY2RGB)
+                    #     state_images.append(state_img)
                 episode_reward += r
                 s = s_
                 if t:
@@ -234,12 +228,11 @@ class DQNAgent:
             rewards.append(episode_reward)
 
             if save:
-                clips = [ImageClip(img, duration=0.1) for img in images]
-                final_clip = concatenate_videoclips(clips, method='compose')
-                final_clip.write_videofile("video_dqn.mp4", fps=24)
-
-                # clips = [ImageClip(img, duration=0.1) for img in state_images]
-                # final_clip = concatenate_videoclips(clips, method='compose')
-                # final_clip.write_videofile("video_dqn_state_obs.mp4", fps=24)
+                height, width, layers = img.shape
+                size = (width, height)
+                out = cv2.VideoWriter('1.avi', cv2.VideoWriter_fourcc(*'DIVX'), 10, size)
+                for i in range(len(images)):
+                    out.write(images[i])
+                out.release()
 
         return np.mean(rewards)

@@ -13,8 +13,8 @@ settings = parser.parse_args()
 
 env_name = 'intersection-v0'
 
-obs = "Kinematics"
-# obs = "Image"
+# obs = "Kinematics"
+obs = "Image"
 
 # action = "ContinuousAction"
 action = "DiscreteMetaAction"
@@ -43,8 +43,8 @@ def env():
                 "scaling": 1.5
             },
             "offroad_terminal": True,
-            "simulation_frequency": 8,
-            "duration": 240,
+            "simulation_frequency": 12,
+            "duration": 18,
             "policy_frequency": 4,
             "offscreen_rendering": True
         })
@@ -82,7 +82,7 @@ elif settings.test:
                          resume=True,
                          use_double_dqn=False, use_dueling_dqn=False, use_priority=False,
                          normalize_reward_coeff=1)
-        agent.test_policy(games=1, render=True, save=True)
+        agent.test_policy(games=1, render=False, save=True)
     else:
         agent = PPOAgent(env, obs=obs, resume=True,
                          model_key="ppo_{}_{}_{}".format(env_name, obs, action))
